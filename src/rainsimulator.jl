@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.16
+# v0.12.20
 
 using Markdown
 using InteractiveUtils
@@ -24,7 +24,6 @@ struct rainsimulator
 	a::Float64 # head diameter
 	b::Float64 # agent height
 	Δt::Float64 #timestep
-	n::Int64
 end
 
 # ╔═╡ 206e2cca-399f-11eb-2ee0-d9f9456ebbdb
@@ -69,6 +68,20 @@ function update_rain!(raininstanz::rain,config::rainsimulator)
 	Δy = -sind(θ)
 	raininstanz.x_pos = raininstanz.x_pos .+ (Δx * vr* Δt)
 	raininstanz.y_pos = raininstanz.y_pos .+ (Δy * vr* Δt)
+	for i in 1:length(raininstanz.x_pos)
+		if raininstanz.x_pos[i] < 0
+			raininstanz.x_pos[i] += config.l
+		end
+		if raininstanz.x_pos[i] > config.l
+			raininstanz.x_pos[i] -= config.l
+		end
+		if raininstanz.y_pos[i] < 0
+			raininstanz.y_pos[i] += config.h	
+		end
+		if raininstanz.y_pos[i] > config.h
+			raininstanz.y_pos[i] -= config.h
+		end
+	end
 end
 
 # ╔═╡ d7a666de-39a7-11eb-0537-ebd5786d023a
@@ -90,10 +103,12 @@ function check_hit_drops!(
 	y_b = config.b
 	y = raininstanz.y_pos
 	push!(responseinstanz.cummulative_hits,0)
-	for (i, x) in enumerate(raininstanz.x_pos)
-		if (x > x_a) && (x < x_b)
-			if (y[i] > y_a) && (y[i] < y_b)
+	for i in 1:length(raininstanz.x_pos)
+		if (raininstanz.x_pos[i] > x_a) && (raininstanz.x_pos[i] < x_b)
+			if (raininstanz.y_pos[i] > y_a) && (raininstanz.y_pos[i] < y_b)
 				responseinstanz.cummulative_hits[end] += 1
+				raininstanz.x_pos[i] = config.l*rand()
+				raininstanz.y_pos[i] = config.h*rand()
 			end
 		end
 	end
@@ -116,26 +131,60 @@ function run(config::rainsimulator)
 	responseinstanz = response([0.0],[0])
 	agentinstanz = agent(0,0)
 	rainfield = init_field(config)
-	for i in 1:config.n
+	n = ceil(config.l/(config.vm*config.Δt))
+	print(n)
+	for i in 1:n
 		maketimestep!(responseinstanz,rainfield,agentinstanz, config)
 	end
 	responseinstanz
 end	
 
 # ╔═╡ f5c27d76-39af-11eb-3e30-d37e2db01542
-c=rainsimulator(100, 100, 5, 1, 30, 100, 0.5, 2, 0.01, 200)
+begin
+	c1=rainsimulator(100, 100, 5.1, 1, 89, 1, 0.5, 2, 0.01)
+	c2=rainsimulator(100, 100, 5.1, 5.1, 89, 1, 0.5, 2, 0.01)
+	c3=rainsimulator(100, 100, 5.1, 10, 89, 1, 0.5, 2, 0.01)
+	c4=rainsimulator(100, 100, 5.1, 1, -89, 1, 0.5, 2, 0.01)
+	c5=rainsimulator(100, 100, 5.1, 5.1, -89, 1, 0.5, 2, 0.01)
+	c6=rainsimulator(100, 100, 5.1, 10, -89, 1, 0.5, 2, 0.01)
+end
 
 # ╔═╡ 7cb9b56a-39b0-11eb-31a0-b98dcd35ad08
-output=run(c)
+begin
+	output1=run(c1)
+	output2=run(c2)
+	output3=run(c3)
+	output4=run(c4)
+	output5=run(c5)
+	output6=run(c6)
+end
+
+# ╔═╡ 86fef7d2-68a0-11eb-1974-4d2695221bdf
+output1.cummulative_hits
 
 # ╔═╡ b41fdc84-39b3-11eb-0107-2fff3564a831
-t=collect(range(0.00,2,length=201))
+
 
 # ╔═╡ e814282e-39b3-11eb-0698-5b00781a15c0
-plot(t,output.cummulative_hits)
+begin 
+	pl = plot()
+	plot!(output1.time,output1.cummulative_hits)
+	plot!(output2.time,output2.cummulative_hits)
+	plot!(output3.time,output3.cummulative_hits)
+	pl
+end
 
 # ╔═╡ b9893c4a-39b5-11eb-042a-99e76c8f37f9
-plot(t,cumsum(output.cummulative_hits))
+begin
+	pl2 = plot()
+	plot!(output1.time,cumsum(output1.cummulative_hits))
+	plot!(output2.time,cumsum(output2.cummulative_hits))
+	plot!(output3.time,cumsum(output3.cummulative_hits))
+	plot!(output4.time,cumsum(output4.cummulative_hits))
+	plot!(output5.time,cumsum(output5.cummulative_hits))
+	plot!(output6.time,cumsum(output6.cummulative_hits))
+	pl2
+end
 
 # ╔═╡ Cell order:
 # ╠═838d642e-399f-11eb-36f4-6fd348a4f84d
@@ -153,6 +202,7 @@ plot(t,cumsum(output.cummulative_hits))
 # ╠═266f8b74-39af-11eb-28fb-d7deda1a1a36
 # ╠═f5c27d76-39af-11eb-3e30-d37e2db01542
 # ╠═7cb9b56a-39b0-11eb-31a0-b98dcd35ad08
+# ╠═86fef7d2-68a0-11eb-1974-4d2695221bdf
 # ╠═9661e304-39b3-11eb-1373-c3959d5b37ff
 # ╠═b41fdc84-39b3-11eb-0107-2fff3564a831
 # ╠═e814282e-39b3-11eb-0698-5b00781a15c0
